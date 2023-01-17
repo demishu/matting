@@ -1,0 +1,3 @@
+Error: File 'F:\wdir\matting\GUI_UI.py' is not valid
+
+while executing 'C:\Users\demishu\AppData\Roaming\Python\Python39\site-packages\PySide6\uic -g python F:\wdir\matting\GUI_UI.py'
