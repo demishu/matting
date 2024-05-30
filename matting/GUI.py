@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QApplication, QFrame, QFileDialog, QTreeWidgetItem
 from PySide6.QtGui import QPixmap, QColor, QIcon, QImage, QTextCursor
 from PySide6.QtCore import QByteArray, Qt, QThread
 from need.GUI_UI import Ui_MainWindow
-from need.matting import matting, FileManager
+from need.matting import matting, FileManager, new_session
 from need.icon import b64_icon
 import os
 import sys
@@ -36,7 +36,7 @@ def get_icon(img_data=None, color=None, fmt='png'):
 
 
 class MyThread(QThread):
-    def __init__(self, manager:FileManager):
+    def __init__(self, manager: FileManager):
         super().__init__()
         self._manager = manager
 
@@ -45,8 +45,8 @@ class MyThread(QThread):
         print('开始抠图')
         output_path = self._manager.output_path
         print('获取输出路径')
+        session = new_session()
         n_imgs = len(self._manager.not_matted_imgs)             # 进度条
-        print('获取没抠的图的数量')
         i = 1                                                   # 进度条
         while self._manager.has_img():                          # 还有没扣的图吗？ 有的话就执行一下代码
             '打印进度条'
@@ -55,7 +55,7 @@ class MyThread(QThread):
             pic = self._manager.get_img()                       # 获取img的路径
             output_file = output_path + os.path.basename(pic)   # 获取输出路径
             print(f'正在抠：{pic}, \n扣好的图在这里：{output_file}')
-            matting(pic, output_file)                           # 开始抠图
+            matting(pic, output_file, session=session)                           # 开始抠图
             i += 1
         print('完成抠图！')
 
@@ -139,14 +139,13 @@ class MyWindow(QFrame):
             item = self.form.tree.findItems(path, Qt.MatchFlag.MatchExactly, 1)
             if not item:
                 child_item = QTreeWidgetItem(self.form.tree,
-                                             [
+                                                [
                                                  str(self.form.tree.topLevelItemCount()+1),
                                                  path
-                                             ]
+                                                ]
                                              )
             else:
                 print(f'该路径已经存在{item.count}')
-                print(dir(item))
 
         else:
             print('文件格式错误，返回')
@@ -191,7 +190,10 @@ class MyWindow(QFrame):
         for row in range(n_row):
             item = self.form.tree.topLevelItem(row)
             path = item.text(1)                             # 获取tree下的所有路径
-            manager.put_imgs(path)
+            if os.path.isdir(path):
+                manager.put_imgs(path)
+            if os.path.isfile(path):
+                manager.put_img(path)
 
         self.thread = MyThread(manager)
         self.thread.start()

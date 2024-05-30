@@ -5,14 +5,34 @@ Created on Thu Jan 12 17:17:38 2023
 @author: demishu
 """
 from typing import NewType
+import pathlib
 import os
-from rembg import remove
+from PIL import Image
+from rembg import remove, new_session
 
 path = NewType("path", str)
 path_list = list[path]
 
 
-def matting(input_path: path, output_path: path) -> None:
+def _img_transpose(img):
+    exif_data = img.getexif()  # 获取 EXIF 信息
+    if exif_data and exif_data.get(274):
+        orientation = exif_data.get(274)
+        if orientation == 3:
+            print('图像旋转 180 度')
+            img = img.rotate(180, expand=True)
+        elif orientation == 6:
+            print('图像旋转 270 度')
+            img = img.rotate(270, expand=True)
+        elif orientation == 8:
+            print('图像旋转 90 度')
+            img = img.rotate(90, expand=True)
+        else:
+            print('正常图片')
+    return img
+
+
+def matting(input_path: path, output_path: path, session=None) -> None:
     """
     对rembg的remove函数重新打包。 首次运行时会自动下载权重文件到我的文档里。
 
@@ -21,10 +41,14 @@ def matting(input_path: path, output_path: path) -> None:
         1，需要抠图的文件在哪里？
         2，扣好的图保存在哪里？
     """
+
     with open(input_path, 'rb') as i:
         with open(output_path, 'wb') as o:
             input_bytes = i.read()
-            output = remove(input_bytes)
+            if session:
+                output = remove(input_bytes, session=session)
+            else:
+                output = remove(input_bytes)
             o.write(output)
 
 
@@ -50,7 +74,7 @@ class FileManager:
 
         '如果没传参output_path的话，就创建/matted文件夹'
         if output_path is None:
-            self._output_path = f'{os.getcwd()}/matted/'.replace('\\', '/')
+            self._output_path = f'{os.getcwd()}/扣好的图/'.replace('\\', '/')
         else:
             self._output_path = output_path
 
@@ -82,30 +106,33 @@ class FileManager:
             return img_path
 
     @staticmethod
-    def _rename(root: path, file: str) -> str:
+    def _rename(path: pathlib.Path) -> str:
         """改名,把“/款号/颜色.png”改名成“/款号/款号 颜色.png”, 再返回改好名的新path"""
-        old_file_name = f'{root}/{file}'.replace('\\', '/')
-        old_path = f'{root}'.replace('\\', '/')
-        art_num = old_path.split('/')[-1]
-        '为了避免重复改名，多加个if sentence'
-        if not file.startswith(art_num):
-            file = f'{art_num} {file}'
-        new_file_name = f'{root}/{file}'.replace('\\', '/')
-        if not os.path.exists(new_file_name):
-            os.rename(old_file_name, new_file_name)
-        return new_file_name
+        root = path.parent.as_posix()
+        style_name = path.parent.stem.replace("款号", "").replace(" ", '').replace('加单', "")
+        if style_name in path.stem:
+            new_path = f'{root}/{path.name}'
+        else:
+            new_path = f'{root}/{style_name} {path.name}'
+        return new_path
+
 
     def put_imgs(self, input_path: path):
         """自动遍历input_path下的所有目录，找出所有的.jpg,.jpeg,.png 图片，并把符合要求的图片加入未抠图的集合里"""
-        walk_obj = os.walk(input_path)
-        for root, dirs, files in walk_obj:
-            for file in files:
-                if file.endswith('.jpg') or file.endswith('.jpeg') or file.endswith('.png'):
-                    '我不喜欢“/款号/颜色.png”这种格式，只能多添加几行代码改名成“/款号/款号 颜色.png”了'
-                    img_path = self._rename(root, file)
-                    '改好名了，把img的path加入img_list'
-                    img_path = path(img_path)
-                    self.put_img(img_path)
+        input_path = pathlib.Path(input_path)
+        pics = list(input_path.glob('**/*.jpg')) + list(input_path.glob('**/*.jpeg')) + list(input_path.glob('**/*.png'))
+        for pic in pics:
+            pic = self._rename(pic)
+            self.put_img(pic)
+        # walk_obj = os.walk(input_path)
+        # for root, dirs, files in walk_obj:
+        #     for file in files:
+        #         if file.endswith('.jpg') or file.endswith('.jpeg') or file.endswith('.png'):
+        #             '我不喜欢“/款号/颜色.png”这种格式，只能多添加几行代码改名成“/款号/款号 颜色.png”了'
+        #             img_path = self._rename(root, file)
+        #             '改好名了，把img的path加入img_list'
+        #             img_path = path(img_path)
+        #             self.put_img(img_path)
 
     def put_img(self, img_path: path):
         """加入单张图片进未抠图的集合里"""
@@ -119,13 +146,32 @@ class FileManager:
 
 
 if __name__ == '__main__':
-    pics_path = path(r"C:\Users\demishu\Desktop\articoli")
-    manager = FileManager()
+    pics_path = path("D:/wdir/原图")
+    manager = FileManager(output_path='D:/wdir/扣好的图/')
     manager.put_imgs(pics_path)
+
+    # manager = FileManager(output_path='D:/wdir/扣好的图/')
     output_path = manager.output_path
+    # manager.put_img(pic_path)
+    session = new_session()
+    is_png = False
     while manager.has_img():
-        img = manager.get_img()
-        output_file = output_path + os.path.basename(img)
-        print(f'正在抠：{img}, \n扣好的图在这里：{output_file}')
-        matting(img, output_file)
-    print(manager)
+        img_path = manager.get_img()
+        if img_path.endswith('.png'):
+            old_img_path = img_path
+            img = Image.open(img_path)
+            img_path = img_path.replace('png', 'jpg')
+            is_png = True
+        else:
+            img = Image.open(img_path)
+        output_file = output_path + os.path.basename(img_path)
+        print(f'正在抠：{img_path}, \n扣好的图在这里：{output_file}')
+        img = _img_transpose(img)
+        img = img.convert("RGB")
+        img.save(img_path)
+        matting(img_path, output_file, session=session)
+        if is_png:
+            os.remove(old_img_path)
+            old_img_path = ""
+            is_png = False
+    # print(manager)
