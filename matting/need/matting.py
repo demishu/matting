@@ -69,8 +69,8 @@ class FileManager:
         通过get_img方法来获取一张还没扣过的图片。
         通过has_img方法来确定还有没有没扣过的图片。
         """
-        self._not_matted_imgs = set()   # 放未抠图的图片的集合
-        self._matted_imgs = set()       # 放扣好图的图片的集合
+        self._not_matted_imgs = set()  # 放未抠图的图片的集合
+        self._matted_imgs = set()  # 放扣好图的图片的集合
 
         '如果没传参output_path的话，就创建/matted文件夹'
         if output_path is None:
@@ -83,7 +83,7 @@ class FileManager:
 
     def __repr__(self):
         """用于print FileManger"""
-        return f"""\nFileManger 发现了{len(self._not_matted_imgs)+len(self._matted_imgs)}张图片:
+        return f"""\nFileManger 发现了{len(self._not_matted_imgs) + len(self._matted_imgs)}张图片:
 还没抠的:{self._not_matted_imgs}\n扣好了的:{self._matted_imgs}\n"""
 
     @property
@@ -116,11 +116,12 @@ class FileManager:
             new_path = f'{root}/{style_name} {path.name}'
         return new_path
 
-
     def put_imgs(self, input_path: path):
         """自动遍历input_path下的所有目录，找出所有的.jpg,.jpeg,.png 图片，并把符合要求的图片加入未抠图的集合里"""
         input_path = pathlib.Path(input_path)
-        pics = list(input_path.glob('**/*.jpg')) + list(input_path.glob('**/*.jpeg')) + list(input_path.glob('**/*.png'))
+        pics = list(input_path.glob('**/*.jpg')) + \
+               list(input_path.glob('**/*.jpeg')) + \
+               list(input_path.glob('**/*.png'))
         for pic in pics:
             pic = self._rename(pic)
             self.put_img(pic)

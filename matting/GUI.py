@@ -6,7 +6,7 @@ Created on Thu Jan 12 17:17:38 2023
 """
 from PySide6.QtWidgets import QApplication, QFrame, QFileDialog, QTreeWidgetItem, QMainWindow
 from PySide6.QtGui import QPixmap, QColor, QIcon, QImage, QTextCursor
-from PySide6.QtCore import QByteArray, Qt, QThread
+from PySide6.QtCore import QByteArray, Qt, QThread, QObject, Signal
 from need.GUI_UI import Ui_MainWindow
 from need.matting import matting, FileManager, new_session
 from need.icon import b64_icon
@@ -33,6 +33,16 @@ def get_icon(img_data=None, color=None, fmt='png'):
         pix.fill(QColor(color))
 
     return QIcon(pix)
+
+
+class TextSignal(QObject):
+    TextWritten = Signal(str)
+
+    def write(self, text):
+        self.TextWritten.emit(str(text))
+
+    def flush(self):
+        pass
 
 
 class MyThread(QThread):
@@ -77,8 +87,10 @@ class MyWindow(QFrame):
         self.root.setWindowTitle('批量抠图小程序')
 
         'redirect stdout to self.form.myConsole'
-        sys.stdout = self
-        sys.stderr = self
+        sys.stdout = TextSignal()
+        sys.stdout.TextWritten.connect(self.output_written)
+        sys.stderr = TextSignal()
+        sys.stderr.TextWritten.connect(self.output_errors)
 
         'set connections'
         self.__connect_functions()
@@ -163,7 +175,16 @@ class MyWindow(QFrame):
         else:
             print("你没选取任何文件夹。")
 
-    def write(self, text):
+    def output_errors(self, text):
+        sys.__stderr__.write(text)
+        cursor = self.form.myConsole.textCursor()
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        cursor.insertText(text)
+        self.form.myConsole.setTextCursor(cursor)
+        self.form.myConsole.ensureCursorVisible()
+
+    def output_written(self, text):
+        sys.__stdout__.write(text)
         cursor = self.form.myConsole.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
         cursor.insertText(text)
