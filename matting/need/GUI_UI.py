@@ -165,8 +165,7 @@ class Ui_MainWindow(object):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", "MainWindow", None))
         self.actionopen.setText(QCoreApplication.translate("MainWindow", "open...", None))
         self.label.setText(QCoreApplication.translate("MainWindow",
-                                                      "首次使用时会下载176MB的权重文件到我的文档，请耐心等待。n"
-                                                      "记得清空输出目录，不然容易因为不知名原因闪退（完全无法debug）",
+                                                      "首次使用时会下载176MB的权重文件到我的文档，请耐心等待。",
                                                       None))
         self.label_2.setText(
             QCoreApplication.translate("MainWindow", "需要抠的图片路径列表",
